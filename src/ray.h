@@ -5,5 +5,5 @@
 struct ray
 {
     float3 origin;
-    float3 direction;
+    float3 direction; // Not normalized
 };

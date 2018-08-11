@@ -2,8 +2,6 @@
 
 #include <cmath>
 
-// float4
-
 float4 add(const float4& v1, const float4& v2)
 {
     return {

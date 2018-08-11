@@ -78,6 +78,7 @@ add_executable(${RAYTRACER_BIN})
 
 target_sources(${RAYTRACER_BIN} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/float2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/float3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/float4.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/types.h
