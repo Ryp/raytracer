@@ -78,3 +78,14 @@ float3 pow(const float3& vec, float scalar);
 float3 cross(const float3& v1, const float3& v2);
 float3 saturate(const float3& vec);
 float3 reflect(const float3& vec, const float3& normal);
+
+struct float3x3
+{
+    float3 c0;
+    float3 c1;
+    float3 c2;
+
+    float3 operator*(const float3& other) const;
+};
+
+float3x3 lookAt(const float3& viewPosition, const float3& targetPosition, const float3& upDirection);

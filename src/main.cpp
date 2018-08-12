@@ -128,17 +128,18 @@ namespace
                 }
                 else
                 {
-                    const float sampleCount = 8 * steps;
+                    const float sampleCount = 60 * steps;
 
                     float3 albedo = mat->albedo;
                     if (mat->fakeTexture)
                     {
+                        // Checkerboard formula
                         const float size = 1.f;
                         const float modx1 = fmodf(fabsf(hitResult.positionWS.x) + size * 0.5f, size * 2.f) - size;
                         const float mody1 = fmodf(fabsf(hitResult.positionWS.z) + size * 0.5f, size * 2.f) - size;
 
                         if (modx1 * mody1 > 0.f)
-                            albedo = float3{0.f, 0.f, 0.f};
+                            albedo = float3{0.1f, 0.1f, 0.15f};
                     }
 
                     float3 reflectedColor = {};
@@ -196,26 +197,37 @@ int main(int argc, char** argv)
     static_cast<void>(argv);
 
     // Render params
-    const int2 imageSize = {300, 160};
+    const int2 imageSize = {800, 450};
     const float fovDegrees = 100.f;
     const int maxSteps = 2;
-    const int antiAliasSampleCount = 4;
+    const int antiAliasSampleCount = 1;
 
     // Scene description
-    const Material mat1 = {{0.2f, 0.2f, 0.2f}, 1.0f, false};
+    const Material matMirror = {{0.2f, 0.2f, 0.2f}, 1.0f, false};
     const Material mat2 = {{0.2f, 0.2f, 0.2f}, 0.2f, true};
-    const Material mat3 = {{0.2f, 0.2f, 0.2f}, 0.4f, false};
-    const Sphere s1 = {{0.f, 0.f, -6.f}, 1.0f, &mat1};
-    const Sphere s2 = {{0.f, -501.f, -6.f}, 500.f, &mat2};
-    const Sphere s3 = {{-2.f, 0.f, -6.f}, 1.0f, &mat3};
-    const Sphere s4 = {{2.f, 0.f, -6.f}, 1.0f, &mat3};
+    const Material matDiffuse = {{0.2f, 0.2f, 0.2f}, 0.4f, false};
+    const Material mat4 = {{10.0f, 10.0f, 4.0f}, 0.0f, false};
+    const Material mat5 = {{10.0f, 1.0f, 1.0f}, 0.0f, false};
+    const Material matEmissiveGreen = {{1.0f, 14.0f, 1.0f}, 0.0f, false};
 
-    Scene scene = { {&s1, &s2, &s3, &s4 } };
+    const Sphere s1 = {{0.f, 0.f, 0.f}, 1.0f, &matMirror};
+    const Sphere s2 = {{0.f, -301.f, 0.f}, 300.f, &mat2};
+    const Sphere s3 = {{-2.f, 0.5f, -2.f}, 1.5f, &matDiffuse};
+    const Sphere s4 = {{2.f, -0.1f, 1.f}, 0.9f, &matDiffuse};
+    const Sphere s5 = {{-4.f, 0.f, 0.f}, 1.0f, &mat4};
+    const Sphere sphereEmissiveRed = {{4.f, -0.2f, 1.f}, 0.8f, &mat5};
+    const Sphere sphereEmissiveGreen = {{-1.3f, -0.5f, 1.5f}, 0.5f, &matEmissiveGreen};
+    const Sphere sphereMirror2 = {{-3.f, 1.0f, 4.f}, 2.f, &matMirror};
 
-    float3 imageData[imageSize.y][imageSize.x]; // Default-init
+    const float3 cameraPositionWS = { 3.f, 3.f, 6.f };
+    const float3 cameraTargetWS = { 0.f, -1.f, 0.f };
+    const float3 cameraUpVector = { 0.f, 1.f, 0.f };
+    const float3x3 cameraOrientationWS = lookAt(cameraPositionWS, cameraTargetWS, cameraUpVector);
+    Scene scene = { {&s1, &s2, &s3, &s4, &s5, &sphereEmissiveRed, &sphereEmissiveGreen, &sphereMirror2 } };
 
-    const float aspectRatio = static_cast<float>(imageSize.x) / static_cast<float>(imageSize.y);
-    const float aspectRatioInv = 1.f / aspectRatio;
+    float3* imageData = new float3[imageSize.y * imageSize.x]; // Default-init
+
+    const float aspectRatioInv = static_cast<float>(imageSize.y) / static_cast<float>(imageSize.x);
     const float tanHFov = tan((fovDegrees * 0.5) * DegToRad);
     const float2 viewportTransform = { tanHFov, -tanHFov * aspectRatioInv };
 
@@ -245,17 +257,23 @@ int main(int argc, char** argv)
             for (int k = 0; k < antiAliasSampleCount; k++)
             {
                 const float2 rayOffset2D = float2{uniform_dist(e1), uniform_dist(e1)} / imageSizeFloat;
-                const float3 rayOffset = {rayOffset2D.x, rayOffset2D.y, 0.f};
-                const Ray ray = Ray{baseRay.origin, baseRay.direction + rayOffset};
-                pixelColor = pixelColor + shade(scene, ray, maxSteps);
+                float3 rayOffset = {rayOffset2D.x, rayOffset2D.y, 0.f};
+
+                if (antiAliasSampleCount == 1)
+                    rayOffset = float3{0.f, 0.f, 0.f};
+
+                const Ray rayVS = Ray{baseRay.origin, baseRay.direction + rayOffset};
+                const Ray rayWS = Ray{rayVS.origin + cameraPositionWS, cameraOrientationWS * rayVS.direction};
+
+                pixelColor = pixelColor + shade(scene, rayWS, maxSteps);
             }
 
             // Average AA samples
-            imageData[j][i] = pixelColor * (1.f / static_cast<float>(antiAliasSampleCount));;
+            imageData[j * imageSize.x + i] = pixelColor * (1.f / static_cast<float>(antiAliasSampleCount));;
         }
     }
 
-    writePPMFile(&imageData[0][0], imageSize);
+    writePPMFile(imageData, imageSize);
 
     return 0;
 }
