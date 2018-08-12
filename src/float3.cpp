@@ -82,6 +82,15 @@ float3 float3::operator/(float scalar) const
     return mul(*this, float3{scalarInv, scalarInv, scalarInv});
 }
 
+float3::operator int3() const
+{
+    return int3{
+        static_cast<int>(x),
+        static_cast<int>(y),
+        static_cast<int>(z)
+    };
+}
+
 float3 float3::operator/(const float3& other) const
 {
     return div(*this, other);
@@ -98,6 +107,15 @@ float3 normalize(const float3& vec)
     const float lengthInv = 1.f / length;
 
     return vec * lengthInv;
+}
+
+float3 pow(const float3& vec, float scalar)
+{
+    return {
+        powf(vec.x, scalar),
+        powf(vec.y, scalar),
+        powf(vec.z, scalar)
+    };
 }
 
 float dot(const float3& v1, const float3& v2)

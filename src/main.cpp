@@ -197,17 +197,9 @@ int main(int argc, char** argv)
 
             // Gamma correction
             const float gammaInv = 1.f / gamma;
-            pixelColor = {
-                powf(pixelColor.x, gammaInv),
-                powf(pixelColor.y, gammaInv),
-                powf(pixelColor.z, gammaInv)
-            };
+            pixelColor = pow(pixelColor, gammaInv);
 
-            const int3 pixelColorQuantized = {
-                static_cast<int>(pixelColor.x * 255.f),
-                static_cast<int>(pixelColor.y * 255.f),
-                static_cast<int>(pixelColor.z * 255.f)
-            };
+            const int3 pixelColorQuantized = int3(pixelColor * 255.f);
             std::cout << pixelColorQuantized.x << ' ' << pixelColorQuantized.y << ' ' << pixelColorQuantized.z << std::endl;
         }
     }

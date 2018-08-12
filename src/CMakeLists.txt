@@ -80,6 +80,7 @@ target_sources(${RAYTRACER_BIN} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/float2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/float3.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/int3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/types.h
 )
 
