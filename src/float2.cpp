@@ -2,44 +2,85 @@
 
 #include <cmath>
 
-float2 add(const float2& v1, const float2& v2)
+namespace
 {
-    return {
-        v1.x + v2.x,
-        v1.y + v2.y
-    };
+    inline float2 add(const float2& v1, const float2& v2)
+    {
+        return {
+            v1.x + v2.x,
+            v1.y + v2.y
+        };
+    }
+
+    inline float2 sub(const float2& v1, const float2& v2)
+    {
+        return {
+            v1.x - v2.x,
+            v1.y - v2.y
+        };
+    }
+
+    inline float2 mul(const float2& v1, const float2& v2)
+    {
+        return {
+            v1.x * v2.x,
+            v1.y * v2.y
+        };
+    }
+
+    inline float2 div(const float2& v1, const float2& v2)
+    {
+        return {
+            v1.x / v2.x,
+            v1.y / v2.y
+        };
+    }
 }
 
-float2 sub(const float2& v1, const float2& v2)
+float2 float2::operator+(float scalar) const
 {
-    return {
-        v1.x - v2.x,
-        v1.y - v2.y
-    };
+    return add(*this, float2{scalar, scalar});
 }
 
-float2 mul(const float2& vec, float scalar)
+float2 float2::operator+(const float2& other) const
 {
-    return {
-        vec.x * scalar,
-        vec.y * scalar
-    };
+    return add(*this, other);
 }
 
-float2 mul(const float2& v1, const float2& v2)
+float2 float2::operator-() const
 {
-    return {
-        v1.x * v2.x,
-        v1.y * v2.y
-    };
+    return sub(float2{}, *this);
 }
 
-float2 div(const float2& v1, const float2& v2)
+float2 float2::operator-(float scalar) const
 {
-    return {
-        v1.x / v2.x,
-        v1.y / v2.y
-    };
+    return sub(*this, float2{scalar, scalar});
+}
+
+float2 float2::operator-(const float2& other) const
+{
+    return sub(*this, other);
+}
+
+float2 float2::operator*(float scalar) const
+{
+    return mul(*this, float2{scalar, scalar});
+}
+
+float2 float2::operator*(const float2& other) const
+{
+    return mul(*this, other);
+}
+
+float2 float2::operator/(float scalar) const
+{
+    const float scalarInv = 1.f / scalar;
+    return mul(*this, float2{scalarInv, scalarInv});
+}
+
+float2 float2::operator/(const float2& other) const
+{
+    return div(*this, other);
 }
 
 float lengthSqr(const float2& vec)
@@ -52,5 +93,5 @@ float2 normalize(const float2& vec)
     const float length = sqrt(lengthSqr(vec));
     const float lengthInv = 1.f / length;
 
-    return mul(vec, lengthInv);
+    return vec * lengthInv;
 }

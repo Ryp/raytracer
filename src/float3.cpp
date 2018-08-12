@@ -2,49 +2,89 @@
 
 #include <cmath>
 
-float3 add(const float3& v1, const float3& v2)
+namespace
 {
-    return {
-        v1.x + v2.x,
-        v1.y + v2.y,
-        v1.z + v2.z
-    };
+    inline float3 add(const float3& v1, const float3& v2)
+    {
+        return {
+            v1.x + v2.x,
+            v1.y + v2.y,
+            v1.z + v2.z
+        };
+    }
+
+    inline float3 sub(const float3& v1, const float3& v2)
+    {
+        return {
+            v1.x - v2.x,
+            v1.y - v2.y,
+            v1.z - v2.z
+        };
+    }
+
+    inline float3 mul(const float3& v1, const float3& v2)
+    {
+        return {
+            v1.x * v2.x,
+            v1.y * v2.y,
+            v1.z * v2.z
+        };
+    }
+
+    inline float3 div(const float3& v1, const float3& v2)
+    {
+        return {
+            v1.x / v2.x,
+            v1.y / v2.y,
+            v1.z / v2.z
+        };
+    }
 }
 
-float3 sub(const float3& v1, const float3& v2)
+float3 float3::operator+(float scalar) const
 {
-    return {
-        v1.x - v2.x,
-        v1.y - v2.y,
-        v1.z - v2.z
-    };
+    return add(*this, float3{scalar, scalar, scalar});
 }
 
-float3 mul(const float3& vec, float scalar)
+float3 float3::operator+(const float3& other) const
 {
-    return {
-        vec.x * scalar,
-        vec.y * scalar,
-        vec.z * scalar
-    };
+    return add(*this, other);
 }
 
-float3 mul(const float3& v1, const float3& v2)
+float3 float3::operator-() const
 {
-    return {
-        v1.x * v2.x,
-        v1.y * v2.y,
-        v1.z * v2.z
-    };
+    return sub(float3{}, *this);
 }
 
-float3 div(const float3& v1, const float3& v2)
+float3 float3::operator-(float scalar) const
 {
-    return {
-        v1.x / v2.x,
-        v1.y / v2.y,
-        v1.z / v2.z
-    };
+    return sub(*this, float3{scalar, scalar, scalar});
+}
+
+float3 float3::operator-(const float3& other) const
+{
+    return sub(*this, other);
+}
+
+float3 float3::operator*(float scalar) const
+{
+    return mul(*this, float3{scalar, scalar, scalar});
+}
+
+float3 float3::operator*(const float3& other) const
+{
+    return mul(*this, other);
+}
+
+float3 float3::operator/(float scalar) const
+{
+    const float scalarInv = 1.f / scalar;
+    return mul(*this, float3{scalarInv, scalarInv, scalarInv});
+}
+
+float3 float3::operator/(const float3& other) const
+{
+    return div(*this, other);
 }
 
 float lengthSqr(const float3& vec)
@@ -57,7 +97,7 @@ float3 normalize(const float3& vec)
     const float length = sqrt(lengthSqr(vec));
     const float lengthInv = 1.f / length;
 
-    return mul(vec, lengthInv);
+    return vec * lengthInv;
 }
 
 float dot(const float3& v1, const float3& v2)
@@ -74,11 +114,17 @@ float3 cross(const float3& v1, const float3& v2)
     };
 }
 
+// normal should be normalized
+float3 reflect(const float3& vec, const float3& normal)
+{
+    return vec - normal * 2.f * dot(vec, normal);
+}
+
 float3 saturate(const float3& vec)
 {
     return {
-        fmax(fmin(vec.x, 1.f), 0.f),
-        fmax(fmin(vec.y, 1.f), 0.f),
-        fmax(fmin(vec.z, 1.f), 0.f)
+        fmaxf(fminf(vec.x, 1.f), 0.f),
+        fmaxf(fminf(vec.y, 1.f), 0.f),
+        fmaxf(fminf(vec.z, 1.f), 0.f)
     };
 }
