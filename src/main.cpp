@@ -140,6 +140,28 @@ namespace
         const float t = 0.5f * (normalizedDirection.y + 1.f);
         return float3{1.f, 1.f, 1.f} * (1.f - t) + float3{0.5f, 0.7f, 1.f} * t;
     }
+
+    // Takes linear input data
+    void writePPMFile(const float3* imageData, const int2& imageSize)
+    {
+        std::cout << "P3" << std::endl << imageSize.x << ' ' << imageSize.y << std::endl << "255" << std::endl;
+
+        for (int j = 0; j < imageSize.y; j++)
+        {
+            for (int i = 0; i < imageSize.x; i++)
+            {
+                const int pixelIndex = imageSize.x * j + i;
+                const float3 pixelColor = imageData[pixelIndex];
+
+                // PPM gamma correction
+                const float ppmGamma = 2.2f;
+                const float ppmGammaInv = 1.f / ppmGamma;
+
+                const int3 pixelColorQuantized = int3(pow(pixelColor, ppmGammaInv) * 255.f);
+                std::cout << pixelColorQuantized.x << ' ' << pixelColorQuantized.y << ' ' << pixelColorQuantized.z << std::endl;
+            }
+        }
+    }
 }
 
 int main(int argc, char** argv)
@@ -151,14 +173,13 @@ int main(int argc, char** argv)
     const float fovDegrees = 130.f;
     const int maxSteps = 2;
     const int antiAliasSampleCount = 4;
-    const float gamma = 2.2;
+
+    float3 imageData[imageSize.y][imageSize.x]; // Default-init
 
     const float aspectRatio = static_cast<float>(imageSize.x) / static_cast<float>(imageSize.y);
     const float aspectRatioInv = 1.f / aspectRatio;
     const float tanHFov = tan((fovDegrees * 0.5) * DegToRad);
     const float2 viewportTransform = { tanHFov, -tanHFov * aspectRatioInv };
-
-    std::cout << "P3" << std::endl << imageSize.x << ' ' << imageSize.y << std::endl << "255" << std::endl;
 
     // Seed with a real random value, if available
     std::random_device randomDevice;
@@ -192,17 +213,13 @@ int main(int argc, char** argv)
                 const ray r = ray{baseRay.origin, baseRay.direction + rayOffset};
                 pixelColor = pixelColor + shade(r, maxSteps);
             }
+
             // Average AA samples
-            pixelColor = pixelColor * (1.f / static_cast<float>(antiAliasSampleCount));
-
-            // Gamma correction
-            const float gammaInv = 1.f / gamma;
-            pixelColor = pow(pixelColor, gammaInv);
-
-            const int3 pixelColorQuantized = int3(pixelColor * 255.f);
-            std::cout << pixelColorQuantized.x << ' ' << pixelColorQuantized.y << ' ' << pixelColorQuantized.z << std::endl;
+            imageData[j][i] = pixelColor * (1.f / static_cast<float>(antiAliasSampleCount));;
         }
     }
+
+    writePPMFile(&imageData[0][0], imageSize);
 
     return 0;
 }
