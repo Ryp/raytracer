@@ -2,10 +2,14 @@
 
 // Integer
 
+struct float2;
+
 struct int2
 {
     int x;
     int y;
+
+    explicit operator float2() const;
 };
 
 struct int3
@@ -41,6 +45,8 @@ struct float2
     float2 operator*(const float2& other) const;
     float2 operator/(float scalar) const;
     float2 operator/(const float2& other) const;
+
+    explicit operator int2() const;
 };
 
 float lengthSqr(const float2& vec);

@@ -2,6 +2,14 @@
 
 #include <cmath>
 
+int2::operator float2() const
+{
+    return float2{
+        static_cast<float>(x),
+        static_cast<float>(y)
+    };
+}
+
 namespace
 {
     inline int3 add(const int3& v1, const int3& v2)

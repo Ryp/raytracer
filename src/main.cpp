@@ -1,28 +1,38 @@
 #include <iostream>
 
 #include "types.h"
-#include "ray.h"
 
 #include <cmath>
 #include <random>
+#include <vector>
 
 namespace
 {
     static constexpr float Pi = 3.14159265;
     static constexpr float DegToRad = Pi / 180.f;
 
-    struct sphere
+    static constexpr float RayHitThreshold = 0.001f;
+
+    struct Material;
+    struct Sphere
     {
         float3 center;
         float radius;
+        const Material* material;
     };
 
-    float hit_sphere(const sphere& s, const ray& r)
+    struct Ray
     {
-        const float3 originToCenter = r.origin - s.center;
-        const float a = dot(r.direction, r.direction);
-        const float b = 2.f * dot(originToCenter, r.direction);
-        const float c = dot(originToCenter, originToCenter) - s.radius * s.radius;
+        float3 origin;
+        float3 direction; // Not normalized
+    };
+
+    float hit_sphere(const Sphere& sphere, const Ray& ray)
+    {
+        const float3 originToCenter = ray.origin - sphere.center;
+        const float a = dot(ray.direction, ray.direction);
+        const float b = 2.f * dot(originToCenter, ray.direction);
+        const float c = dot(originToCenter, originToCenter) - sphere.radius * sphere.radius;
         const float discriminant = b * b - 4.f * a * c;
 
         if (discriminant < 0.f)
@@ -31,49 +41,52 @@ namespace
             return ((-b - sqrt(discriminant)) * 0.5) / a;
     }
 
-    struct rayHit
+    struct Material
     {
-        float t;
-        float3 normalWS;
         float3 albedo;
         float metalness;
     };
 
+    struct RayHit
+    {
+        float t;
+        const Material* mat;
+
+        float3 positionWS;
+        float3 normalWS;
+    };
+
     bool isBetterHit(float value, float base)
     {
-        return value > 0.f && (base <= 0.f || value < base);
+        return value > RayHitThreshold && (!(base > RayHitThreshold) || value < base);
     }
 
-    bool traverse_scene(const ray& r, rayHit& hit)
+    struct Scene
     {
-        const sphere s1 = {{0.f, 0.f, -3.f}, 1.0f};
-        const sphere s2 = {{0.f, -501.f, -3.f}, 500.f};
+        std::vector<const Sphere*> spheres;
+    };
 
+    bool traverse_scene(const Scene& s, const Ray& ray, RayHit& hit)
+    {
         float bestHit = 0.f;
 
-        const float t1 = hit_sphere(s1, r);
-        if (isBetterHit(t1, bestHit))
+        for (const Sphere* object : s.spheres)
         {
-            bestHit = t1;
-            const float3 rayHitWS = r.origin + r.direction * t1;
-            hit.normalWS = (rayHitWS - s1.center) / s1.radius;
-            hit.albedo = {1.f, 1.f, 1.f};
-            hit.metalness = 0.99f;
-        }
+            const Sphere& sphere = *object;
+            const float t = hit_sphere(sphere, ray);
 
-        const float t2 = hit_sphere(s2, r);
-        if (isBetterHit(t2, bestHit))
-        {
-            bestHit = t2;
-            const float3 rayHitWS = r.origin + r.direction * t2;
-            hit.normalWS = (rayHitWS - s2.center) / s2.radius;
-            hit.albedo = {0.1f, 0.3f, 0.3f};
-            hit.metalness = 0.2f;
+            if (isBetterHit(t, bestHit))
+            {
+                bestHit = t;
+                const float3 rayHitWS = ray.origin + ray.direction * t;
+                hit.normalWS = (rayHitWS - sphere.center) / sphere.radius;
+                hit.positionWS = rayHitWS;
+                hit.mat = sphere.material;
+            }
         }
 
         hit.t = bestHit;
-
-        return bestHit > 0.f;
+        return bestHit > RayHitThreshold;
     }
 
     float sign(float value)
@@ -90,9 +103,9 @@ namespace
         return sampleOriented;
     }
 
-    float3 shade(const ray& r, float steps)
+    float3 shade(const Scene& scene, const Ray& ray, float steps)
     {
-        rayHit hitResult;
+        RayHit hitResult;
 
         // Seed with a real random value, if available
         std::random_device randomDevice;
@@ -101,34 +114,36 @@ namespace
         std::default_random_engine e1(randomDevice());
         std::uniform_real_distribution<float> uniform_dist(-1.f, 1.f);
 
-        if (traverse_scene(r, hitResult))
+        if (traverse_scene(scene, ray, hitResult))
         {
-            const float3 albedo = hitResult.albedo;
+            const Material* mat = hitResult.mat;
+            const float3 albedo = mat->albedo;
 
             if (steps > 0)
             {
-                const float sampleCount = 8 * steps;
-
-                float3 reflectedColor = {};
-                for (int k = 0; k < sampleCount; k++)
+                if (mat->metalness == 1.f)
                 {
-                    const float3 rayHitWS = r.origin + r.direction * hitResult.t;
-                    float3 randomSample = normalize(
-                        {
-                            uniform_dist(e1),
-                            uniform_dist(e1),
-                            uniform_dist(e1)
-                        }
-                    );
-                    randomSample = sampleDistribution(hitResult.metalness, hitResult.normalWS, randomSample);
-                    const ray reflectedRay = { rayHitWS, randomSample };
-
-                    reflectedColor = reflectedColor + shade(reflectedRay, steps - 1);
+                    const Ray reflectedRay = { hitResult.positionWS, reflect(ray.direction, hitResult.normalWS) };
+                    return shade(scene, reflectedRay, steps - 1);
                 }
-                reflectedColor = reflectedColor * (1.f / static_cast<float>(sampleCount));
+                else
+                {
+                    const float sampleCount = 8 * steps;
 
-                // Shade result
-                return albedo * reflectedColor;
+                    float3 reflectedColor = {};
+                    for (int k = 0; k < sampleCount; k++)
+                    {
+                        float3 randomSample = normalize({uniform_dist(e1), uniform_dist(e1), uniform_dist(e1)});
+                        randomSample = sampleDistribution(mat->metalness, hitResult.normalWS, randomSample);
+                        const Ray reflectedRay = { hitResult.positionWS, randomSample };
+
+                        reflectedColor = reflectedColor + shade(scene, reflectedRay, steps - 1);
+                    }
+                    reflectedColor = reflectedColor * (1.f / static_cast<float>(sampleCount));
+
+                    // Shade result
+                    return albedo * reflectedColor;
+                }
             }
             else
                 return albedo;
@@ -136,7 +151,7 @@ namespace
         }
 
         // No hit -> fake skybox
-        const float3 normalizedDirection = normalize(r.direction);
+        const float3 normalizedDirection = normalize(ray.direction);
         const float t = 0.5f * (normalizedDirection.y + 1.f);
         return float3{1.f, 1.f, 1.f} * (1.f - t) + float3{0.5f, 0.7f, 1.f} * t;
     }
@@ -169,10 +184,22 @@ int main(int argc, char** argv)
     static_cast<void>(argc);
     static_cast<void>(argv);
 
-    const int2 imageSize = {200, 150};
-    const float fovDegrees = 130.f;
+    // Render params
+    const int2 imageSize = {300, 160};
+    const float fovDegrees = 100.f;
     const int maxSteps = 2;
     const int antiAliasSampleCount = 4;
+
+    // Scene description
+    const Material mat1 = {{0.2f, 0.2f, 0.2f}, 1.0f};
+    const Material mat2 = {{0.2f, 0.2f, 0.2f}, 0.2f};
+    const Material mat3 = {{0.2f, 0.2f, 0.2f}, 0.4f};
+    const Sphere s1 = {{0.f, 0.f, -6.f}, 1.0f, &mat1};
+    const Sphere s2 = {{0.f, -501.f, -6.f}, 500.f, &mat2};
+    const Sphere s3 = {{-2.f, 0.f, -6.f}, 1.0f, &mat3};
+    const Sphere s4 = {{2.f, 0.f, -6.f}, 1.0f, &mat3};
+
+    Scene scene = { {&s1, &s2, &s3, &s4 } };
 
     float3 imageData[imageSize.y][imageSize.x]; // Default-init
 
@@ -192,10 +219,7 @@ int main(int argc, char** argv)
     {
         for (int i = 0; i < imageSize.x; i++)
         {
-            const float2 imageSizeFloat = {
-                static_cast<float>(imageSize.x),
-                static_cast<float>(imageSize.y)
-            };
+            const float2 imageSizeFloat = float2(imageSize);
 
             // From top left to bottom right
             const float2 rayIndex = float2{static_cast<float>(i), static_cast<float>(j)} + 0.5f;
@@ -204,14 +228,15 @@ int main(int argc, char** argv)
             rayDirection2D = rayDirection2D * viewportTransform;
             const float3 rayOrigin = { 0.f, 0.f, 0.f};
 
-            const ray baseRay = { rayOrigin, { rayDirection2D.x, rayDirection2D.y, -1.f} };
+            const Ray baseRay = { rayOrigin, { rayDirection2D.x, rayDirection2D.y, -1.f} };
 
             float3 pixelColor = {};
             for (int k = 0; k < antiAliasSampleCount; k++)
             {
-                const float3 rayOffset = { uniform_dist(e1) / imageSizeFloat.x, uniform_dist(e1) / imageSizeFloat.y, 0.f};
-                const ray r = ray{baseRay.origin, baseRay.direction + rayOffset};
-                pixelColor = pixelColor + shade(r, maxSteps);
+                const float2 rayOffset2D = float2{uniform_dist(e1), uniform_dist(e1)} / imageSizeFloat;
+                const float3 rayOffset = {rayOffset2D.x, rayOffset2D.y, 0.f};
+                const Ray ray = Ray{baseRay.origin, baseRay.direction + rayOffset};
+                pixelColor = pixelColor + shade(scene, ray, maxSteps);
             }
 
             // Average AA samples

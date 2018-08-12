@@ -83,6 +83,14 @@ float2 float2::operator/(const float2& other) const
     return div(*this, other);
 }
 
+float2::operator int2() const
+{
+    return int2{
+        static_cast<int>(x),
+        static_cast<int>(y)
+    };
+}
+
 float lengthSqr(const float2& vec)
 {
     return vec.x * vec.x + vec.y * vec.y;
