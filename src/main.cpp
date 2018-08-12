@@ -16,7 +16,7 @@ namespace
     struct Material;
     struct Sphere
     {
-        float3 center;
+        float3 centerWS;
         float radius;
         const Material* material;
     };
@@ -29,7 +29,7 @@ namespace
 
     float hit_sphere(const Sphere& sphere, const Ray& ray)
     {
-        const float3 originToCenter = ray.origin - sphere.center;
+        const float3 originToCenter = ray.origin - sphere.centerWS;
         const float a = dot(ray.direction, ray.direction);
         const float b = 2.f * dot(originToCenter, ray.direction);
         const float c = dot(originToCenter, originToCenter) - sphere.radius * sphere.radius;
@@ -45,6 +45,7 @@ namespace
     {
         float3 albedo;
         float metalness;
+        bool fakeTexture;
     };
 
     struct RayHit
@@ -79,7 +80,7 @@ namespace
             {
                 bestHit = t;
                 const float3 rayHitWS = ray.origin + ray.direction * t;
-                hit.normalWS = (rayHitWS - sphere.center) / sphere.radius;
+                hit.normalWS = (rayHitWS - sphere.centerWS) / sphere.radius;
                 hit.positionWS = rayHitWS;
                 hit.mat = sphere.material;
             }
@@ -117,7 +118,6 @@ namespace
         if (traverse_scene(scene, ray, hitResult))
         {
             const Material* mat = hitResult.mat;
-            const float3 albedo = mat->albedo;
 
             if (steps > 0)
             {
@@ -129,6 +129,17 @@ namespace
                 else
                 {
                     const float sampleCount = 8 * steps;
+
+                    float3 albedo = mat->albedo;
+                    if (mat->fakeTexture)
+                    {
+                        const float size = 1.f;
+                        const float modx1 = fmodf(fabsf(hitResult.positionWS.x) + size * 0.5f, size * 2.f) - size;
+                        const float mody1 = fmodf(fabsf(hitResult.positionWS.z) + size * 0.5f, size * 2.f) - size;
+
+                        if (modx1 * mody1 > 0.f)
+                            albedo = float3{0.f, 0.f, 0.f};
+                    }
 
                     float3 reflectedColor = {};
                     for (int k = 0; k < sampleCount; k++)
@@ -146,7 +157,7 @@ namespace
                 }
             }
             else
-                return albedo;
+                return mat->albedo;
             //return mul(add(mul(hitResult.normalWS, 0.5f), {0.5f,0.5f,0.5f}), hitResult.albedo);
         }
 
@@ -191,9 +202,9 @@ int main(int argc, char** argv)
     const int antiAliasSampleCount = 4;
 
     // Scene description
-    const Material mat1 = {{0.2f, 0.2f, 0.2f}, 1.0f};
-    const Material mat2 = {{0.2f, 0.2f, 0.2f}, 0.2f};
-    const Material mat3 = {{0.2f, 0.2f, 0.2f}, 0.4f};
+    const Material mat1 = {{0.2f, 0.2f, 0.2f}, 1.0f, false};
+    const Material mat2 = {{0.2f, 0.2f, 0.2f}, 0.2f, true};
+    const Material mat3 = {{0.2f, 0.2f, 0.2f}, 0.4f, false};
     const Sphere s1 = {{0.f, 0.f, -6.f}, 1.0f, &mat1};
     const Sphere s2 = {{0.f, -501.f, -6.f}, 500.f, &mat2};
     const Sphere s3 = {{-2.f, 0.f, -6.f}, 1.0f, &mat3};
