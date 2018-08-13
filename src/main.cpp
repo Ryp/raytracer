@@ -128,8 +128,6 @@ namespace
                 }
                 else
                 {
-                    const float sampleCount = 60 * steps;
-
                     float3 albedo = mat->albedo;
                     if (mat->fakeTexture)
                     {
@@ -142,16 +140,11 @@ namespace
                             albedo = float3{0.1f, 0.1f, 0.15f};
                     }
 
-                    float3 reflectedColor = {};
-                    for (int k = 0; k < sampleCount; k++)
-                    {
-                        float3 randomSample = normalize({uniform_dist(e1), uniform_dist(e1), uniform_dist(e1)});
-                        randomSample = sampleDistribution(mat->metalness, hitResult.normalWS, randomSample);
-                        const Ray reflectedRay = { hitResult.positionWS, randomSample };
+                    float3 randomSample = normalize({uniform_dist(e1), uniform_dist(e1), uniform_dist(e1)});
+                    randomSample = sampleDistribution(mat->metalness, hitResult.normalWS, randomSample);
+                    const Ray reflectedRay = { hitResult.positionWS, randomSample };
 
-                        reflectedColor = reflectedColor + shade(scene, reflectedRay, steps - 1);
-                    }
-                    reflectedColor = reflectedColor * (1.f / static_cast<float>(sampleCount));
+                    const float3 reflectedColor = shade(scene, reflectedRay, steps - 1);
 
                     // Shade result
                     return albedo * reflectedColor;
@@ -199,8 +192,8 @@ int main(int argc, char** argv)
     // Render params
     const int2 imageSize = {800, 450};
     const float fovDegrees = 100.f;
-    const int maxSteps = 2;
-    const int antiAliasSampleCount = 1;
+    const int maxSteps = 10;
+    const int antiAliasSampleCount = 100;
 
     // Scene description
     const Material matMirror = {{0.2f, 0.2f, 0.2f}, 1.0f, false};
